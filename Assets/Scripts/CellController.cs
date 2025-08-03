@@ -38,12 +38,10 @@ public class CellController : MonoBehaviour, IPointerEnterHandler, IPointerDownH
 
     public void setWall()
     {
-        if (getState() == CellState.solution)
-        {
-            AStarAlgo.boardChanged = true;
-        }
+        AStarAlgo.boardChanged = true;
         setState(CellState.wall);
         setColor(Color.whiteSmoke);
+
     }
 
     public void setBlank()
@@ -65,30 +63,44 @@ public class CellController : MonoBehaviour, IPointerEnterHandler, IPointerDownH
 
     public void setSolution(float fValue, float bestFValue)
     {
-        float t = (float) (fValue - bestFValue) / ((cellCount/2) - bestFValue) ;
-        Debug.Log(fValue + " " + bestFValue + " " + cellCount);
+        float t = (float)(fValue - bestFValue) / ((cellCount / 2) - bestFValue);
+        t = t % 1;
         setState(CellState.solution);
-        setColor(Color.HSVToRGB(1-t, 1f, 1f));
+        setColor(Color.HSVToRGB(t, 1f, 1f));
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (Mouse.current.leftButton.isPressed)
         {
-            Debug.Log("dragged over square");
             if (myState != CellState.start && myState != CellState.end)
             {
                 setWall();
+            }
+        }
+        if (Mouse.current.rightButton.isPressed)
+        {
+            if (myState == CellState.wall)
+            {
+                setBlank();
+                AStarAlgo.boardChanged = true;
             }
         }
     }
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        Debug.Log("Clicked on square");
         if (myState != CellState.start && myState != CellState.end)
         {
-            setWall();
+            if (eventData.button == PointerEventData.InputButton.Left)
+            {
+                setWall();
+            }
+            else if (eventData.button == PointerEventData.InputButton.Right)
+            {
+                setBlank();
+                AStarAlgo.boardChanged = true;
+            }
         }
     }
 }

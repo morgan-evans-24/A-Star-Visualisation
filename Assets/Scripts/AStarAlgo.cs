@@ -45,7 +45,9 @@ public class AStarAlgo : MonoBehaviour
 
     private List<Pair> openList = new List<Pair>();
     private List<Pair> closedList = new List<Pair>();
-    private Pair solution = new Pair(-1,-1);
+    private Dictionary<(int, int), Pair> allPairs = new();
+
+    private Pair solution = new Pair(-1, -1);
 
     public void setup(GameObject[,] grid, Pair startPoint, Pair endPoint)
     {
@@ -57,6 +59,7 @@ public class AStarAlgo : MonoBehaviour
 
     public void run()
     {
+        Debug.LogWarning("SELF REFERENTIAL LOOP, NEVER TERMINATES NATURALLY");
         foreach (GameObject g in grid)
         {
             if (g.GetComponent<CellController>().getState() == CellController.CellState.solution)
@@ -67,20 +70,27 @@ public class AStarAlgo : MonoBehaviour
 
         openList.Clear();
         closedList.Clear();
+        allPairs.Clear();
         foundEnd = false;
 
 
-        startPoint.fValue = 0;
         startPoint.gValue = 0;
+        startPoint.fValue = calculateF(startPoint, startPoint);
 
         openList.Add(startPoint);
 
         solution = AStarSearch(grid, startPoint, endPoint);
-        
+
         Pair solutionCopy = solution.parent;
         if (bestScore == -1)
         {
             bestScore = solutionCopy.fValue;
+        }
+
+        if (solutionCopy == null)
+        {
+            Debug.LogWarning("Solution was null, exiting");
+            return;
         }
 
         while (solutionCopy.parent != null && foundEnd)
@@ -121,13 +131,16 @@ public class AStarAlgo : MonoBehaviour
                     candidate = p;
                 }
             }
-
+            if (lowestFValue == float.MaxValue)
+            {
+                Debug.LogWarning("All remaining nodes have infinite cost. No path found.");
+                break;
+            }
             if (candidate.fValue != int.MaxValue)
             {
                 openList.Remove(candidate);
             }
             // Take candidate move, generate all next moves for it
-            Debug.Log(candidate.first + " " + candidate.second);
             calculateNextStep(candidate);
             closedList.Add(candidate);
 
@@ -153,30 +166,26 @@ public class AStarAlgo : MonoBehaviour
 
                 if (existing != null)
                 {
-                    if (existing.fValue < successor.fValue)
+                    if (existing.fValue > successor.fValue)
                     {
-                        continue;
+                        existing.fValue = successor.fValue;
+                        existing.gValue = successor.gValue;
+                        existing.parent = q;
                     }
-                    else
-                    {
-                        existing = successor;
-                        continue;
-                    }
+                    continue;
                 }
 
                 existing = closedList.FirstOrDefault(p => p.first == successor.first && p.second == successor.second);
 
                 if (existing != null)
                 {
-                    if (existing.fValue < successor.fValue)
+                    if (existing.fValue > successor.fValue)
                     {
-                        continue;
+                        existing.fValue = successor.fValue;
+                        existing.gValue = successor.gValue;
+                        existing.parent = q;
                     }
-                    else
-                    {
-                        existing = successor;
-                        continue;
-                    }
+                    continue;
                 }
 
                 openList.Add(successor);
@@ -188,19 +197,42 @@ public class AStarAlgo : MonoBehaviour
     {
         List<Pair> successorsList = new List<Pair>();
 
-        for (int i = -1; i < 2; i++) {
-            for (int j = -1; j < 2; j++)
-            {
-                if (cellIsValid(q.first + i, q.second + j))
-                {
-                    successorsList.Add(new Pair(q.first + i, q.second + j));
-                }
-            }
-        }
-
-        foreach (Pair p in successorsList)
+        for (int i = -1; i <= 1; i++)
         {
-            p.parent = q;
+            for (int j = -1; j <= 1; j++)
+            {
+                if (i == 0 && j == 0)
+                {
+                    continue;
+                }
+
+                int newX = q.first + i;
+                int newY = q.second + j;
+
+                if (!cellIsValid(newX, newY))
+                {
+                    continue;
+                }
+
+                // Prevent diagonal corner cutting
+                if (i != 0 && j != 0)
+                {
+                    if (!cellIsValid(q.first + i, q.second) || !cellIsValid(q.first, q.second + j))
+                    {
+                        continue;
+                    }
+                }
+
+                if (!allPairs.TryGetValue((newX, newY), out Pair successor))
+                {
+                    successor = new Pair(newX, newY);
+                    allPairs[(newX, newY)] = successor;
+                    Debug.Log("setting parent node to " + q.first + ", " + q.second);
+                    successor.parent = q;
+                }
+
+                successorsList.Add(successor);
+            }
         }
 
         return successorsList.ToArray();
@@ -208,7 +240,12 @@ public class AStarAlgo : MonoBehaviour
 
     private float calculateF(Pair current, Pair parent)
     {
-        float h = Mathf.Ceil(Mathf.Sqrt(Mathf.Pow(current.first - endPoint.first, 2) + Mathf.Pow(current.second - endPoint.second, 2)));
+
+        float dx = Mathf.Abs(current.first - endPoint.first);
+        float dy = Mathf.Abs(current.second - endPoint.second);
+        float D = 1f;
+        float D2 = Mathf.Sqrt(2);
+        float h = D * (dx + dy) + (D2 - 2 * D) * Mathf.Min(dx, dy);
 
         float g;
         if (parent.first == current.first || parent.second == current.second)
@@ -222,7 +259,8 @@ public class AStarAlgo : MonoBehaviour
 
         current.gValue = g;
 
-        return g + h;
+        float epsilon = 1.0f / 1000.0f;
+        return g + h * (1.0f + epsilon);
     }
 
     private bool cellIsValid(int i, int j)

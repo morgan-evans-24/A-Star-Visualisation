@@ -284,8 +284,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 292c403bdd89166aa881acd79891a710, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boardWidth: 10
-  boardHeight: 10
+  boardWidth: 13
+  boardHeight: 13
   cellWidth: 2
   cellHeight: 2
   cell: {fileID: 3355076108822520962, guid: 1ebfe63ca9071a7f1bd110d5f73d02f4, type: 3}
